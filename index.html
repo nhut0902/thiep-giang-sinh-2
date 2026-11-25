@@ -777,6 +777,18 @@ $('ltSub').textContent='For you, '+CFG.name;
 $('to').textContent=CFG.to;
 $('sig').textContent=CFG.sign;
 document.title='Giáng Sinh 2026 — Dành tặng '+CFG.name;
+// ===== NhutCoder Team — áp dụng dữ liệu link cá nhân hóa (?id=) =====
+// Bootstrap ở cuối trang fetch dữ liệu rồi gọi lại hàm này → đè CFG + vẽ lại DOM.
+window.__xmasApply=function(d){
+  if(!d)return;
+  Object.assign(CFG,d);
+  $('envName').textContent=CFG.name;
+  $('sealTxt').textContent=CFG.seal||(CFG.from||CFG.name||'N').charAt(0).toUpperCase();
+  $('ltSub').textContent='For you, '+CFG.name;
+  $('to').textContent=CFG.to;
+  $('sig').textContent=CFG.sign;
+  document.title='Giáng Sinh 2026 — Dành tặng '+CFG.name;
+};
 $('seal').addEventListener('click',e=>{e.stopPropagation();openEnvelope()});
 $('musicBtn').addEventListener('click',e=>{e.stopPropagation();toggleMusic()});
 $('heartBtn').addEventListener('click',e=>{
@@ -828,6 +840,58 @@ function loop(now){
 }
 resize();
 requestAnimationFrame(loop);
+</script>
+<script>
+/* ===== NhutCoder Team — link thiệp cá nhân hóa (?id=XXXX) =====
+ * Trang HTML tĩnh: fetch dữ liệu từ site chính (1 request/lượt xem, tối ưu
+ * Vercel Free), đè CFG qua __xmasApply, đếm ngược thời gian sống của link,
+ * hiện màn "hết hạn" khi hết giờ hoặc link không tồn tại.
+ */
+(function(){
+  var API='https://nhutcoder-team-v2.vercel.app/api/xmas-links';
+  var CREATE_URL='https://nhutcoder-team-v2.vercel.app/tang-giang-sinh';
+  var id=null;
+  try{id=new URLSearchParams(location.search).get('id')}catch(e){id=location.search.indexOf('id=')>=0?location.search.split('id=')[1].split('&')[0]:null}
+  // Credit nhỏ "Tạo thiệp riêng của bạn" (thiệp 2 chưa có footer sẵn)
+  var bar=document.createElement('div');
+  bar.style.cssText='position:fixed;left:0;right:0;bottom:calc(1% + env(safe-area-inset-bottom,0px));text-align:center;font:10px/1.4 system-ui,sans-serif;color:rgba(255,255,255,.42);z-index:40';
+  bar.innerHTML='Code By <b style="color:#fff;font-weight:500">NhutCoder</b> Team · <a href="'+CREATE_URL+'" target="_blank" rel="noopener" style="color:rgba(245,200,107,.65);text-decoration:underline">Tạo thiệp riêng của bạn</a>';
+  document.body.appendChild(bar);
+  if(!id)return;
+  var timer=null,gone=null;
+  function showGone(title,sub){
+    if(gone)return;if(timer)clearInterval(timer);
+    gone=document.createElement('div');
+    gone.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(4,7,16,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;font-family:Georgia,serif;color:#f3e9d7';
+    gone.innerHTML='<div style="font-size:42px;color:#ffe9b8;margin-bottom:10px">&#10052;</div>'
+      +'<div style="font-size:clamp(22px,6vw,30px);color:#ffe9b8;margin-bottom:8px">'+title+'</div>'
+      +'<p style="font-size:14px;opacity:.8;max-width:340px;line-height:1.6;margin-bottom:20px">'+sub+'</p>'
+      +'<a href="'+CREATE_URL+'" target="_blank" rel="noopener" style="display:inline-block;padding:12px 22px;border-radius:12px;background:linear-gradient(135deg,#a3122e,#d93552);color:#fff;font-weight:700;font-size:14px;text-decoration:none;box-shadow:0 6px 22px rgba(217,53,82,.4)">Tạo thiệp mới — miễn phí</a>';
+    document.body.appendChild(gone);
+  }
+  function startTimer(exp){
+    var el=document.createElement('div');
+    el.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:60;font:600 11px/1 system-ui,sans-serif;letter-spacing:.06em;color:#ffe9b8;background:rgba(10,15,32,.55);border:1px solid rgba(245,200,107,.4);border-radius:999px;padding:7px 14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);pointer-events:none';
+    document.body.appendChild(el);
+    function up(){
+      var r=exp-Date.now();
+      if(r<=0){el.textContent='Hết thời gian hiển thị';showGone('Link đã hết hạn','Mỗi link thiệp có thời gian hiển thị riêng. Tạo thiệp mới miễn phí, hoặc dùng Xu giữ link lâu hơn nhé.');return}
+      var s=Math.floor(r/1000),m=Math.floor(s/60),h=Math.floor(m/60),d=Math.floor(h/24);
+      el.textContent=d>0?('Còn '+d+' ngày '+(h%24)+' giờ'):(h>0?('Còn '+h+':'+String(m%60).padStart(2,'0')):('Còn '+String(m).padStart(2,'0')+':'+String(s%60).padStart(2,'0')));
+    }
+    up();timer=setInterval(up,1000);
+  }
+  fetch(API+'/'+id,{cache:'no-store'}).then(function(r){
+    if(r.status===410)return r.json().then(function(){showGone('Link đã hết hạn','Thiệp đã hết thời gian hiển thị. Tạo thiệp mới miễn phí chỉ mất vài giây nhé.');throw new Error('expired')});
+    if(r.status===404)return r.json().then(function(){showGone('Không tìm thấy thiệp','Link không tồn tại hoặc đã được dọn dẹp. Tạo thiệp mới của riêng bạn nhé.');throw new Error('notfound')});
+    if(!r.ok)throw new Error('http_'+r.status);
+    return r.json();
+  }).then(function(j){
+    if(!j||!j.ok||!j.data)return;
+    if(window.__xmasApply)window.__xmasApply(j.data);
+    startTimer(j.expiresAt);
+  }).catch(function(){});
+})();
 </script>
 </body>
 </html>
